@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+python cf-base-instance.py <%= @app_name %>
+python cf-stack-generator.py staging <%= @app_name %>
+python cf-stack-generator.py production <%= @app_name %>
+mkdir -p ../cloud_formation_templates
+mv -f *.json ../cloud_formation_templates

@@ -1,0 +1,25 @@
+Description:
+    This generator builds the files required to create a complete Stack for this application on AWS
+    with Load Balance, Route 53, Web Servers, Delayed Jobs Worker, Security Groups ....
+
+    rails generate aws_stack_builder [app_name] [role1 [role2...]]
+
+Example:
+
+    rails g aws_stack_builder your_amazing_app role1 role2 role3
+
+    This will create:
+
+        aws/doc/README.md
+        aws/doc/app-cf-designer.png
+
+        aws/scripts/app_pack.sh
+        aws/scripts/run_delayed_job.sh
+        aws/scripts/app_stop_instances.sh
+        aws/scripts/app_deploy.sh
+        aws/scripts/app_update.sh
+
+        aws/geradores/ami-userdata.sh
+        aws/geradores/cf-base-instance.py
+        aws/geradores/cf-stack-generator.py
+        aws/geradores/build_templates.sh

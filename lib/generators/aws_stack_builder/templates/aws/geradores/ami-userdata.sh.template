@@ -1,0 +1,54 @@
+#!/bin/bash
+# create log file set -x
+exec > >(tee /tmp/user-data.log|logger -t user-data ) 2>&1
+# update OS
+sudo yum -y update
+# create user deploy
+sudo useradd deploy
+sudo bash -c "echo -e \"deploy ALL=(ALL) NOPASSWD: ALL\" >> /etc/sudoers"
+# install rvm and ruby
+sudo yum install -y gcc openssl-devel libyaml libyaml-devel libffi-devel libreadline readline-devel zlib1g zlib-devel gdbm-devel ncurses ncurses-devel ruby-devel gcc-c++ jq git patch libtool bison build-essential libc6 libgdbm
+sudo su - deploy -c "curl -sSL https://rvm.io/mpapis.asc | gpg2 --import -"
+sudo su - deploy -c "curl -sSL https://get.rvm.io | bash -s stable"
+sudo su - deploy -c "yes | rvm install 2.2.9"
+# install bundler
+sudo su - deploy -c "gem install bundler"
+# create ~/app and install application dependencies
+sudo su - deploy -c "mkdir -p ~/app/current"
+#  - java
+sudo yum -y install java-1.7.0-openjdk.x86_64
+sudo yum -y install java-1.7.0-openjdk-devel
+sudo su - deploy -c "echo \"export JAVA_HOME=/usr/lib/jvm/java-1.7.0\" >> ~/.bashrc"
+#  - libs needed by charlock holmes
+sudo yum -y install icu libicu libicu-devel xmlstarlet
+#  - mysql
+sudo yum -y install mysql-devel
+sudo su - deploy -c "echo \"export MYSQL_PASSWORD=taxweb2016\" >> ~/.bashrc"
+sudo su - deploy -c "echo \"export TAXRULES_PORTAL_DB=mysql\" >> ~/.bashrc"
+# install apache
+sudo yum -y install glibc.i686
+sudo yum -y install curl-devel httpd-devel-2.4.34
+sudo yum -y install httpd-2.4.34
+# execute <%= @app_name %> app_update.sh
+sudo su - deploy -c "cd ~/app/current; wget http://taxweb-deploy.s3.amazonaws.com/<%= @app_name %>/app_update.sh -O app_update.sh >/dev/null 2>&1"
+sudo su - deploy -c "cd ~/app/current && chmod 755 app_update.sh && ./app_update.sh staging web <%= @app_name %>"
+# set RAILS_ENV
+sudo su - deploy -c "echo \"export RAILS_ENV=staging\" >> ~/.bashrc"
+# install passenger
+sudo su - deploy -c "cd ~/app/current && gem install passenger -v 5.3.4 --no-rdoc --no-ri"
+sudo su - deploy -c "cd ~/app/current && passenger-install-apache2-module --languages ruby --auto"
+sudo su - deploy -c "cd ~/app/current && passenger-install-apache2-module --snippet > /tmp/passenger.conf"
+sudo su - deploy -c "echo \"\" >> /tmp/passenger.conf"
+sudo su - deploy -c "echo \"PassengerMaxRequestQueueSize 50\" >> /tmp/passenger.conf"
+sudo su - deploy -c "echo \"PassengerMaxPoolSize 15\" >> /tmp/passenger.conf"
+sudo su - deploy -c "sudo mv /tmp/passenger.conf /etc/httpd/conf.d/00passenger.conf"
+# config apache
+sudo su - -c "cd /etc/httpd/conf.d/ && rm <%= @app_name %>_app.conf; wget http://taxweb-deploy.s3.amazonaws.com/<%= @app_name %>/<%= @app_name %>_app.conf -O <%= @app_name %>_app.conf"
+# file system permissions
+sudo chmod 755 /home
+sudo chmod 755 /home/deploy
+sudo chmod -R 755 /home/deploy/app
+# restart apache
+sudo service httpd restart
+# finished
+echo "Instance configuration finished!"

@@ -1,0 +1,96 @@
+from troposphere import Base64, Join, Parameter, Ref, Template, Tags
+import troposphere.ec2 as ec2
+
+# template
+template = Template()
+template.add_version("2010-09-09")
+template.add_description("AWS CloudFormation template for base instance")
+
+# parameters
+subnet_id = Parameter(
+    "SubnetId",
+    Type="AWS::EC2::Subnet::Id",
+    Default="subnet-0b3b0d6e",
+    Description="Id of the Subnet which will hold the instance"
+)
+template.add_parameter(subnet_id)
+
+vpc_id = Parameter(
+    "VpcId",
+    Type="AWS::EC2::VPC::Id",
+    Default="vpc-ebe0c38e",
+    Description="Id of the VPC which will hold the instance"
+)
+template.add_parameter(vpc_id)
+
+instance_profile = Parameter(
+    "InstanceProfileName",
+    Type="String",
+    Default="<%= @app_name %>",
+    Description="Name of the instance profile to associate with the instance"
+)
+template.add_parameter(instance_profile)
+
+
+# security group
+sg = ec2.SecurityGroup(
+    '<%= @app_name %>SG',
+    GroupDescription="Security Group for base instance.",
+    Tags=Tags(
+       Name='<%= @app_name %>-base-instance-sg',
+       Custo='<%= @app_name %>'
+    ),
+    SecurityGroupIngress=[
+        ec2.SecurityGroupRule(
+            IpProtocol="tcp",
+            FromPort="22",
+            ToPort="22",
+            CidrIp="0.0.0.0/0"
+        ),
+        ec2.SecurityGroupRule(
+            IpProtocol="tcp",
+            FromPort="9090",
+            ToPort="9090",
+            CidrIp="0.0.0.0/0"
+        ),
+        ec2.SecurityGroupRule(
+            IpProtocol="tcp",
+            FromPort="80",
+            ToPort="80",
+            CidrIp="0.0.0.0/0"
+        ),
+        ec2.SecurityGroupRule(
+            IpProtocol="tcp",
+            FromPort="443",
+            ToPort="443",
+            CidrIp="0.0.0.0/0"
+        )
+    ],
+    VpcId=Ref(vpc_id)
+)
+template.add_resource(sg)
+
+userdata_file = open("ami-userdata.sh", "r")
+userdata = userdata_file.read()
+
+# instance
+instance = ec2.Instance(
+    "<%= @app_name %>BaseInstance",
+    Tags=Tags(
+        Name='<%= @app_name %>-Base-Instance',
+        Custo='<%= @app_name %>'
+    ),
+    ImageId="ami-a9d09ed1",
+    InstanceType="t3.medium",
+    KeyName="taxweb-AWS-US-West",
+    SubnetId=Ref(subnet_id),
+    SecurityGroupIds=[Ref(sg)],
+    #IamInstanceProfile=Ref(instance_profile),
+    UserData=Base64(userdata)
+)
+template.add_resource(instance)
+
+
+f = open("cf-base-instance.json", "w+")
+f.write(template.to_json())
+f.close()

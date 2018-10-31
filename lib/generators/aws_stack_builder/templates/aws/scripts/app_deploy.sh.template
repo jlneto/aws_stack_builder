@@ -1,0 +1,32 @@
+#!/bin/bash
+
+USAGE="Uso: app_deploy.sh <RAILS_ENV>"
+
+SCRIPT_DIR=$(dirname "$0")
+cd $SCRIPT_DIR
+
+RAILS_ENV=$1
+
+if [ -z $RAILS_ENV ]; then
+  echo "Argumento RAILS_ENV é obrigatório."
+  echo $USAGE
+  exit
+fi
+
+if [ $RAILS_ENV != 'staging' ]  && [ $RAILS_ENV != 'production' ]; then
+  echo "Valores permitidos para o argumento RAILS_ENV são: staging, production."
+  echo $USAGE
+  exit
+fi
+
+echo "Preparing application for deployment..."
+app_pack.sh $RAILS_ENV
+echo "Done."
+
+echo "Rebooting AWS instances to deploy new version."
+app_stop_instances_by_role.sh $RAILS_ENV web
+<%- @roles.each do |role| %>
+app_stop_instances_by_role.sh $RAILS_ENV <%= role %>
+<% end %>
+echo "Done."
+
